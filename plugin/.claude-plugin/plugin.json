@@ -1,6 +1,6 @@
 {
   "name": "agentjournal",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Pin what you were told, journal what you did, sleep when your head is full: hooks pin the user's words verbatim and journal every action, and put both back after compaction, resume or /clear.",
   "author": {
     "name": "Pi Percent Human",

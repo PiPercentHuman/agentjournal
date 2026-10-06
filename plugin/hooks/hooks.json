@@ -1,16 +1,42 @@
 {
   "hooks": {
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "pin"], "timeout": 10 }] }
+      {
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "pin"], "timeout": 10 }
+        ]
+      }
     ],
     "PostToolUse": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "journal"], "timeout": 10 }] }
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "journal"], "timeout": 10 }
+        ]
+      }
     ],
     "PostToolUseFailure": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "journal"], "timeout": 10 }] }
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "journal"], "timeout": 10 }
+        ]
+      }
     ],
     "SessionStart": [
-      { "matcher": "compact|resume|clear", "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "wake"], "timeout": 10 }] }
+      {
+        "matcher": "startup|compact|resume|clear",
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "wake"], "timeout": 10 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/agentjournal-hook.mjs", "stop"], "timeout": 10 }
+        ]
+      }
     ]
   }
 }
