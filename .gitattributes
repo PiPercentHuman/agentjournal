@@ -1,0 +1,3 @@
+plugin/bin/agentjournal text eol=lf
+*.mjs text eol=lf
+*.sh text eol=lf
