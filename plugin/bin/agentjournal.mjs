@@ -35,7 +35,7 @@ if (cmd === "note" || cmd === "sleep") {
 	const root = findRoot();
 	fs.mkdirSync(root, { recursive: true });
 	fs.appendFileSync(path.join(root, "INBOX.jsonl"), JSON.stringify({ kind: cmd, text, at: new Date().toISOString() }) + "\n");
-	console.log(cmd === "sleep" ? "Journaled. Topic closed: end your turn now; you continue from the pins and the journal." : "Journaled.");
+	console.log(cmd === "sleep" ? "Journaled: topic closed. Continue from the pins and the journal." : "Journaled.");
 } else if (cmd === "status") {
 	const root = findRoot();
 	const dir = read(path.join(root, "LAST")).trim();
