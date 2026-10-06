@@ -1,6 +1,6 @@
 {
   "name": "agentjournal",
-  "owner": { "name": "Pi Percent Human", "url": "https://github.com/suse-git" },
+  "owner": { "name": "Pi Percent Human", "url": "https://github.com/PiPercentHuman" },
   "plugins": [
     {
       "name": "agentjournal",

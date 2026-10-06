@@ -62,7 +62,7 @@ because between sleeps it only appends (the server reuses its cache).
 
 ### pi - the full version (real sleep)
 ```bash
-pi install git:github.com/suse-git/agentjournal     # add AgentJournal to your pi
+pi install git:github.com/PiPercentHuman/agentjournal     # add AgentJournal to your pi
 pi -e ./pi/extensions/agentjournal.ts               # or load it once from a clone of this repo
 ```
 `pi/bin/agentjournal.mjs` is a small launcher that starts pi with AgentJournal loaded; every pi option passes through.
@@ -74,7 +74,7 @@ The `plugin/` folder is a Claude Code plugin: hooks pin each of your messages, j
 after compaction, `/resume` or `/clear`, plus the AgentJournal skill.
 
 ```
-/plugin marketplace add suse-git/agentjournal
+/plugin marketplace add PiPercentHuman/agentjournal
 /plugin install agentjournal@agentjournal
 ```
 
