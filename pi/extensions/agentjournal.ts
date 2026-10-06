@@ -7,18 +7,20 @@
  *   the raw steps since the last sleep (tool calls and their results).
  * While awake, the raw steps only grow at the end, so the server can reuse what it already read. When they pass
  * AGENTJOURNAL_SLEEP_TOKENS (estimated), the model "sleeps": everything older than the last AGENTJOURNAL_KEEP_STEPS steps is
- * folded into the JOURNAL at once, and the JOURNAL stays fixed until the next sleep.
+ * folded into the JOURNAL at once, and the JOURNAL stays fixed until the next sleep. The model can also sleep on purpose
+ * when it finishes a topic: `agentjournal sleep "<what it came to>"` folds everything but that one step right away.
  *
  * Measured (local Qwen3.5-9B, 24- and 60-file jobs; benchmark/ in this repository): the same design finished 10/10
  * 24-file jobs with the right carried count and 3/3 60-file jobs longer than every window, at about the compute of
  * keeping everything. It cancels pi's own size-triggered compaction, so the two never fight over one context.
  *
  * The pins and the full journal are also written to .agentjournal/<session>/PINNED.md and JOURNAL.md, like the hook version.
- * Env: AGENTJOURNAL_SLEEP_TOKENS (9000), AGENTJOURNAL_KEEP_STEPS (3), AGENTJOURNAL_DIR (.agentjournal)
+ * Env: AGENTJOURNAL_SLEEP_TOKENS (9000), AGENTJOURNAL_KEEP_STEPS (3), AGENTJOURNAL_ROOT or AGENTJOURNAL_DIR (.agentjournal)
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const SLEEP_TOKENS = Number(process.env.AGENTJOURNAL_SLEEP_TOKENS ?? 9000);
 const KEEP_STEPS = Number(process.env.AGENTJOURNAL_KEEP_STEPS ?? 3);
@@ -42,7 +44,14 @@ const action = (m: Msg): string =>
 const chars = (m: Msg) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)).length;
 
 export default function (pi: ExtensionAPI) {
-	const dir = path.resolve(process.cwd(), process.env.AGENTJOURNAL_DIR ?? ".agentjournal", new Date().toISOString().replace(/[:.]/g, "-"));
+	const root = process.env.AGENTJOURNAL_ROOT ?? path.resolve(process.cwd(), process.env.AGENTJOURNAL_DIR ?? ".agentjournal");
+	process.env.AGENTJOURNAL_ROOT = root; // the `agentjournal note|sleep` the model runs writes to this same folder
+	try {
+		// So the model's shell finds `agentjournal` even when this package came in by `pi install`, not npm.
+		const bin = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "plugin", "bin");
+		if (fs.existsSync(bin)) process.env.PATH = `${bin}${path.delimiter}${process.env.PATH ?? ""}`;
+	} catch {}
+	const dir = path.join(root, new Date().toISOString().replace(/[:.]/g, "-"));
 	let pins: string[] = [];
 	let journal = ""; // frozen between sleeps, so the memory message stays byte-for-byte the same
 	let cutAt = -1; // where the raw steps kept since the last sleep begin (-1: no sleep yet)
@@ -108,6 +117,17 @@ export default function (pi: ExtensionAPI) {
 			written = turns.length;
 		}
 
+		// What the model wrote with `agentjournal note|sleep` (its call is already an action line; this keeps the text whole).
+		// A sleep is the model saying a topic is finished: fold at once, whatever the size.
+		const inbox = path.join(root, "INBOX.jsonl");
+		let asked: { kind: string; text: string }[] = [];
+		try {
+			asked = fs.readFileSync(inbox, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+			fs.unlinkSync(inbox);
+		} catch {}
+		for (const a of asked) fs.appendFileSync(path.join(dir, "JOURNAL.md"), `${a.kind === "sleep" ? "SLEEP" : "NOTE"} ${a.text}\n`);
+		const sleepAsked = asked.some((a) => a.kind === "sleep");
+
 		// The recent steps: the last KEEP_STEPS assistant turns with their results (a tool call stays with its result).
 		let start = msgs.length;
 		for (let i = msgs.length - 1, steps = 0; i >= 0; i--) {
@@ -120,9 +140,14 @@ export default function (pi: ExtensionAPI) {
 		const firstStep = msgs.findIndex((m) => m.role === "assistant");
 		const rawStart = cutAt >= 0 ? cutAt : firstStep >= 0 ? firstStep : msgs.length;
 		const estimate = (memory().length + msgs.slice(rawStart).reduce((a, m) => a + chars(m), 0)) / 4;
-		if (estimate > SLEEP_TOKENS && start > rawStart) {
+		// On `agentjournal sleep` keep only the step that asked for it (the call and its reply), so the model sees it slept.
+		const lastStep = msgs.findLastIndex((m) => m.role === "assistant");
+		const foldTo = sleepAsked ? lastStep : start;
+		if ((sleepAsked || estimate > SLEEP_TOKENS) && foldTo > rawStart) {
 			// Sleep: fold everything older than the recent steps into the journal, once.
-			cutAt = start;
+			cutAt = foldTo;
+			const folded = msgs.slice(0, cutAt).filter((m) => m.role === "assistant").length;
+			fs.appendFileSync(path.join(dir, "JOURNAL.md"), `--- slept (${sleepAsked ? "topic closed" : "head full"}): ${folded} steps now journal only\n`);
 			let n = 0;
 			journal = msgs
 				.slice(0, cutAt)

@@ -9,7 +9,9 @@ For any long job, keep two files in `.agentjournal/` in the working directory:
    themselves (`files changed so far: billing.ts, users.ts`). Never rewrite earlier lines.
 3. **SLEEP** - when your context is long, after any compaction, and at the start of every session: read
    PINNED.md and the end of JOURNAL.md and continue from them; they are the truth, not your recollection. If the journal
-   is long, append a fold line restating the state, counted from the journal lines.
+   is long, append a fold line restating the state, counted from the journal lines. When a topic is finished, close it
+   yourself rather than waiting for a full context: with the `agentjournal` command installed, run
+   `agentjournal sleep "<what the topic came to, in one line>"` and end your turn.
 4. **Bulk work** - do not read a large body of material in your own context: give each chunk to a fresh worker
    (sub-agent, sub-task or new session) with the pins, and journal the one line it returns.
 5. **Before "done"** - check every pin against the output you actually produced (read it back) and recount any

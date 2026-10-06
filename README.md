@@ -13,7 +13,7 @@ AgentJournal gives an agent the same three things:
 |---|---|---|
 | **PIN** | every message you wrote, word for word, never rewritten | a rule you gave once is exactly what a summary drops |
 | **JOURNAL** | one line per action: what the agent *did*, not what it *read* | the trail of actions carries the job's state (and its counts); file contents are what fill the context |
-| **SLEEP** | when the context is full, fold everything older into the journal and wake up from pins + journal | the agent continues from its own notes, not from a summary somebody else wrote |
+| **SLEEP** | when the agent finishes a topic (it runs `agentjournal sleep`) or the context is full, fold everything older into the journal and wake up from pins + journal | the agent continues from its own notes, not from a summary somebody else wrote |
 
 ## What we measured
 
@@ -41,6 +41,34 @@ and the released 0.1.1 (3/3). The running total is where it is weak at this leng
 total was right 7 times. (Build 0.1.0 stopped once at file 54: pi sized the reply from its full uncut history and left
 a 1-token answer; 0.1.1 raises the reply limit to what the trimmed request leaves.)
 
+## Sleep when a topic is done (0.2)
+
+Waiting for a full context is waiting for the same moment a compaction picks: somewhere in the middle of the work.
+A person sleeps after the day's work is done. In 0.2 the agent decides: when a topic is finished it runs
+
+```bash
+agentjournal sleep "topic 1 done: a01-a08 written; urgent so far: 2 (a03.txt, a06.txt)"
+agentjournal note  "files changed so far: billing.ts, users.ts"     # any fact it must keep, any time
+agentjournal status                                                 # where the journal is, topics closed so far
+```
+
+and the topic line goes into the journal, then:
+
+| where | what happens after `agentjournal sleep` |
+|---|---|
+| **pi** | the extension folds everything but that one step into the journal at once, in the same session, and the agent carries on |
+| **Claude Code** | the agent ends its turn; you see "safe to /clear"; `/clear` gives a blank context that wakes up from the same pins and journal (a `/clear` without a sleep stays blank) |
+| **Codex, Copilot** | the topic is journaled and the agent is told to end its turn; clearing is up to you |
+
+Claude Code's `/clear` can only be typed by you; no hook, tool or command can run it, so there the agent can choose the
+moment but not press the key.
+
+Measured on pi (same 9B model, two topics of 8 files, the count carried across both, size-triggered sleep switched off
+so only the agent's own sleep could fold): 3 of 3 runs called `sleep` after the last file of topic 1, folded right
+there (16, 22 and 16 steps became journal lines), and then got all 16 keys and the total across both topics right
+(`benchmark/topic_sleep_test.py`, `benchmark/topic-results.jsonl`). The prompt told the agent when to sleep; whether
+an agent picks topic boundaries by itself from the startup note alone is not measured yet.
+
 Compute: AgentJournal read about 21K tokens per 24-file job against 17K for keeping everything and 23K for compaction,
 because between sleeps it only appends (the server reuses its cache).
 
@@ -50,9 +78,10 @@ because between sleeps it only appends (the server reuses its cache).
 - **Instructions alone do not work on small models.** As `AGENTS.md` text only, the 9B model never wrote a single
   note (8 of 8 runs) and failed every 60-file job. AgentJournal works where **code** does the pinning and journaling: the pi
   extension, or the hooks below. Strong models may follow the instructions; that is untested here.
-- **It does not stop a hook-only agent's context from filling.** Claude Code, Codex and Copilot keep their context
-  until they compact; with AgentJournal the compaction (or a `/clear`) becomes safe, because the pins and the journal are put
-  back. Only pi (and Hermes, not yet ported) let AgentJournal replace the context itself.
+- **It does not clear a hook-only agent's context by itself.** Claude Code, Codex and Copilot keep their context
+  until they compact or you `/clear`; AgentJournal makes either safe, because the pins and the journal are put back, and
+  in Claude Code it tells you when the agent has closed a topic. Only pi (and Hermes, not yet ported) let AgentJournal
+  replace the context itself.
 - **A running count is not reliable at length.** It holds on the 24-file job but at 60 files it was right in about half
   the runs. If the job needs a number at the end, have the agent recount it from its output.
 - **Rules applied at length still slip** on a small model (the format rule was missed on some files while it was in
@@ -65,25 +94,29 @@ because between sleeps it only appends (the server reuses its cache).
 pi install git:github.com/PiPercentHuman/agentjournal     # add AgentJournal to your pi
 pi -e ./pi/extensions/agentjournal.ts               # or load it once from a clone of this repo
 ```
-`pi/bin/agentjournal.mjs` is a small launcher that starts pi with AgentJournal loaded; every pi option passes through.
-The extension cancels pi's own size-triggered compaction (AgentJournal sleeps instead) and writes the pins and the full
-journal to `.agentjournal/<session>/`. Settings: `AGENTJOURNAL_SLEEP_TOKENS` (9000), `AGENTJOURNAL_KEEP_STEPS` (3).
+`agentjournal pi` (or `npm i -g` this repo, then `agentjournal` with any pi options) starts pi with AgentJournal
+loaded. The extension cancels pi's own size-triggered compaction (AgentJournal sleeps instead), puts the
+`agentjournal` command on the agent's PATH, and writes the pins and the full journal to `.agentjournal/<session>/`.
+Settings: `AGENTJOURNAL_SLEEP_TOKENS` (9000), `AGENTJOURNAL_KEEP_STEPS` (3).
 
 ### Claude Code - plugin (pins + journal + wake-up)
-The `plugin/` folder is a Claude Code plugin: hooks pin each of your messages, journal each tool call, and put both back
-after compaction, `/resume` or `/clear`, plus the AgentJournal skill.
+The `plugin/` folder is a Claude Code plugin: hooks pin each of your messages, journal each tool call, tell the agent
+at startup how to close a topic, show "safe to /clear" when it has, and put pins and journal back after compaction,
+`/resume` or that `/clear`; plus the AgentJournal skill and the `agentjournal` command (`plugin/bin/`).
 
 ```
 /plugin marketplace add PiPercentHuman/agentjournal
 /plugin install agentjournal@agentjournal
 ```
 
-Or for one session from a clone: `claude --plugin-dir ./plugin`. To keep it on for one project without the plugin: copy `plugin/hooks/agentjournal-hook.mjs` to `.claude/hooks/`, merge
+Or for one session from a clone: `claude --plugin-dir ./plugin`. To keep it on for one project without the plugin: copy
+`plugin/hooks/agentjournal-hook.mjs` and `plugin/bin/agentjournal.mjs` to `.claude/hooks/`, merge
 `install/claude-code/settings.json` into `.claude/settings.json`, and copy `plugin/skills/agentjournal/` to
-`.claude/skills/`. The notes go to `.agentjournal/<session>/` in the project (add it to `.gitignore`).
+`.claude/skills/`. The notes go to `.agentjournal/<session>/` in the project (add it to `.gitignore`); after a sleep
+and `/clear`, the new session keeps writing to the same folder.
 
-Run `/clear` when the context is heavy: you get an empty context and wake up from the notes, with no summary in
-between.
+When you see "safe to /clear", run it: you get an empty context that wakes up from the notes, with no summary in
+between. You can also `/clear` whenever the context is heavy, but a `/clear` the agent did not ask for starts blank.
 
 ### Codex CLI and GitHub Copilot - hooks
 Copy `plugin/hooks/agentjournal-hook.mjs` somewhere stable, put its absolute path into `install/codex/hooks.json`
@@ -108,13 +141,15 @@ Built on [pi](https://github.com/earendil-works/pi) (MIT). The benchmark compare
 (Shao et al., 2026). The design draws on how human memory consolidates: anchors, a record of actions, and sleep.
 ## Files
 
-- `package.json`: makes the repo a pi package (`pi install git:...`) with the `agentjournal` launcher.
+- `package.json`: makes the repo a pi package (`pi install git:...`) with the `agentjournal` command.
 - `.claude-plugin/marketplace.json`: makes the repo a Claude Code plugin marketplace with one plugin, `./plugin`.
 - `SKILL.md`, `AGENTS-snippet.md`: the instructions, for any agent.
 - `plugin/`: the Claude Code plugin (`.claude-plugin/plugin.json`, `hooks/hooks.json`, `hooks/agentjournal-hook.mjs`,
-  `skills/agentjournal/SKILL.md`). The one hook script also serves Codex and Copilot.
+  `skills/agentjournal/SKILL.md`) and the `agentjournal` command (`bin/agentjournal.mjs`, with `sh` and `.cmd`
+  shims). The one hook script also serves Codex and Copilot.
 - `install/`: hook configs for a Claude Code project, Codex and Copilot.
-- `pi/`: the pi extension (`extensions/agentjournal.ts`) and the `agentjournal` launcher (`bin/agentjournal.mjs`).
+- `pi/`: the pi extension (`extensions/agentjournal.ts`) and the pi launcher (`bin/agentjournal.mjs`, run by
+  `agentjournal pi`).
 - `benchmark/`: the harness as run (`pilot.py`; paths assume our layout), `run_full.sh` and `run_long.sh`, the
   research extension with all 15 variants we screened (`research-extension.ts`), and every trial in `results.jsonl`.
   Labels in that file: `control` keeps everything, `compaction` is pi's compaction, `clm` is pi-clm, `anchor` with

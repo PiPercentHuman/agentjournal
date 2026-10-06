@@ -44,6 +44,12 @@ Sleep when your context is getting long, when the tool tells you it compacted, o
    Count from the journal lines, never from memory.
 3. Continue from the next step the journal points to.
 
+**Close each topic yourself.** Do not wait for the context to fill: that moment falls in the middle of the work. When
+a part of the job is finished and stands on its own, and the `agentjournal` command is installed, run
+`agentjournal sleep "<what the topic came to, in one line: files, numbers, decisions>"` and end your turn. In pi the
+context folds at once; in Claude Code the user is told it is safe to `/clear`, and you wake up from the pins and the
+journal. `agentjournal note "<line>"` puts any fact you must keep into the journal at any time.
+
 ## 4. Bulk work: churn with fresh workers, keep only the journal
 
 When the job is to go through a lot of material (many files, records, pages, a database), do not read it all in your

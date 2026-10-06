@@ -6,7 +6,7 @@
       "name": "agentjournal",
       "source": "./plugin",
       "description": "Pin what you were told, journal what you did, sleep when your head is full: hooks pin your messages word for word and journal every action, and put both back after compaction, resume or /clear.",
-      "version": "0.1.1"
+      "version": "0.2.0"
     }
   ]
 }
