@@ -61,8 +61,9 @@ and the topic line goes into the journal, then:
 | **Codex, Copilot** | the topic is journaled and the agent is told to end its turn; clearing is up to you |
 
 Claude Code's `/clear` can only be typed by you; no hook, tool or command can run it, so there the agent can choose the
-moment and ask, but not press the key. Allowing it would take one hook field in Claude Code (a Stop hook that may
-clear after the user approves); earlier requests for it were closed by the inactivity bot, not declined:
+moment and ask, but not press the key. Allowing it would take one hook field in Claude Code. We asked for it in
+[anthropics/claude-code#99996](https://github.com/anthropics/claude-code/issues/99996): a 👍 there helps. Earlier
+requests for it were closed by the inactivity bot, not declined:
 [#16659](https://github.com/anthropics/claude-code/issues/16659), [#35150](https://github.com/anthropics/claude-code/issues/35150),
 [#9118](https://github.com/anthropics/claude-code/issues/9118).
 
