@@ -7,7 +7,9 @@
 //   node agentjournal-hook.mjs pin         on UserPromptSubmit / userPromptSubmitted -> .agentjournal/<session>/PINNED.md
 //   node agentjournal-hook.mjs journal     on PostToolUse(Failure) / postToolUse     -> .agentjournal/<session>/JOURNAL.md
 //                                          (also takes in what `agentjournal note|sleep` left in .agentjournal/INBOX.jsonl)
-//   node agentjournal-hook.mjs stop        on Stop: after `agentjournal sleep`, tell the user it is safe to /clear
+//   node agentjournal-hook.mjs ask         on Claude Code PreToolUse(Bash): `agentjournal sleep` asks the user first
+//                                          (Allow = close the topic; Deny = keep working in this context)
+//   node agentjournal-hook.mjs stop        on Stop: after `agentjournal sleep`, tell the user (and the desktop) to /clear
 //                                          (a /clear after a sleep continues the same pins and journal)
 //   node agentjournal-hook.mjs wake        on SessionStart compact|resume|clear      -> pins + recent journal back in context
 //                                          (on startup: one paragraph on how to close a topic with `agentjournal sleep`)
@@ -150,11 +152,27 @@ function main(action, ev) {
 		}
 		return;
 	}
+	if (action === "ask") {
+		// Claude Code PreToolUse on Bash: the user decides whether the agent may close the topic (and so clear).
+		const sleep = String(e.input.command ?? "").match(/agentjournal(?:\.mjs)?["']?\s+sleep\s+([\s\S]*)$/);
+		if (!sleep) return;
+		const topic = oneLine(sleep[1].replace(/^\s*["']|["']\s*$/g, ""), 300);
+		process.stdout.write(JSON.stringify({
+			hookSpecificOutput: {
+				hookEventName: "PreToolUse",
+				permissionDecision: "ask",
+				permissionDecisionReason:
+					`AgentJournal: Claude finished a topic and wants a fresh context ("${topic}"). Allow = journal it and stop; ` +
+					"then type /clear and it wakes up from your pins and the journal. Deny = keep working in this context.",
+			},
+		}));
+		return;
+	}
 	if (action === "stop") {
 		if (read(pending).trim() !== dir) return;
-		process.stdout.write(JSON.stringify({
-			systemMessage: "AgentJournal: Claude closed a topic and journaled it. Run /clear now; it wakes up from the pins and the journal.",
-		}));
+		const text = "AgentJournal: topic closed and journaled. Type /clear now; Claude wakes up from the pins and the journal.";
+		// A desktop notification as well (OSC 9: Windows Terminal, iTerm2, WezTerm, ConEmu), for when you are elsewhere.
+		process.stdout.write(JSON.stringify({ systemMessage: text, terminalSequence: `\u001b]9;${text}\u0007` }));
 		return;
 	}
 	if (action === "precompact") {

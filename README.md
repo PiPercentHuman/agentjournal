@@ -57,11 +57,14 @@ and the topic line goes into the journal, then:
 | where | what happens after `agentjournal sleep` |
 |---|---|
 | **pi** | the extension folds everything but that one step into the journal at once, in the same session, and the agent carries on |
-| **Claude Code** | the agent ends its turn; you see "safe to /clear"; `/clear` gives a blank context that wakes up from the same pins and journal (a `/clear` without a sleep stays blank) |
+| **Claude Code** | you are asked first (Allow / Deny, with the topic line); on Allow the agent ends its turn and you get a "type /clear now" message plus a desktop notification; `/clear` gives a blank context that wakes up from the same pins and journal (a `/clear` without a sleep stays blank). On Deny it keeps working in the same context |
 | **Codex, Copilot** | the topic is journaled and the agent is told to end its turn; clearing is up to you |
 
 Claude Code's `/clear` can only be typed by you; no hook, tool or command can run it, so there the agent can choose the
-moment but not press the key.
+moment and ask, but not press the key. Allowing it would take one hook field in Claude Code (a Stop hook that may
+clear after the user approves); earlier requests for it were closed by the inactivity bot, not declined:
+[#16659](https://github.com/anthropics/claude-code/issues/16659), [#35150](https://github.com/anthropics/claude-code/issues/35150),
+[#9118](https://github.com/anthropics/claude-code/issues/9118).
 
 Measured on pi (same 9B model, two topics of 8 files, the count carried across both, size-triggered sleep switched off
 so only the agent's own sleep could fold): 3 of 3 runs called `sleep` after the last file of topic 1, folded right
