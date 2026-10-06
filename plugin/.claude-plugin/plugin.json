@@ -1,0 +1,12 @@
+{
+  "name": "agentjournal",
+  "version": "0.1.1",
+  "description": "Pin what you were told, journal what you did, sleep when your head is full: hooks pin the user's words verbatim and journal every action, and put both back after compaction, resume or /clear.",
+  "author": {
+    "name": "Pi Percent Human",
+    "url": "https://github.com/suse-git"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/suse-git/agentjournal",
+  "repository": "https://github.com/suse-git/agentjournal"
+}

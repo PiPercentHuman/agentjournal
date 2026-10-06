@@ -1,0 +1,15 @@
+{
+  "name": "agentjournal",
+  "version": "0.1.1",
+  "description": "A memory for coding agents: pin what you were told, journal what you did, sleep when your head is full. A pi extension, a Claude Code plugin, and hooks for Codex and Copilot.",
+  "type": "module",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/suse-git/agentjournal.git" },
+  "homepage": "https://github.com/suse-git/agentjournal#readme",
+  "bin": { "agentjournal": "pi/bin/agentjournal.mjs" },
+  "pi": { "extensions": ["./pi/extensions/agentjournal.ts"] },
+  "files": ["pi", "plugin", "install", "SKILL.md", "AGENTS-snippet.md", "README.md", "LICENSE"],
+  "peerDependencies": { "@earendil-works/pi-coding-agent": ">=1.0.3" },
+  "engines": { "node": ">=22.19.0" },
+  "keywords": ["pi", "pi-package", "claude-code", "codex", "copilot", "agent", "context", "memory", "compaction", "llm"]
+}

@@ -1,0 +1,8 @@
+control     n=10 | finished 10 | total 8 | perfect 8 | urgentUP 29/30 | keys 239/240 | peak 19628 | read 16710 | secs 73
+compaction  n=10 | finished 7 | total 3 | perfect 1 | urgentUP 23/30 | keys 232/240 | peak 10772 | read 22873 | secs 233
+clm         n=10 | finished 0 | total 0 | perfect 0 | urgentUP 20/30 | keys 194/240 | peak 12131 | read 220775 | secs 224
+plain       n=10 | finished 10 | total 1 | perfect 1 | urgentUP 28/30 | keys 236/240 | peak 3374 | read 67491 | secs 118
+journal     n=10 | finished 10 | total 10 | perfect 7 | urgentUP 28/30 | keys 238/240 | peak 4970 | read 112062 | secs 155
+sleep       n=10 | finished 10 | total 10 | perfect 8 | urgentUP 28/30 | keys 238/240 | peak 9516 | read 20637 | secs 91
+boundaries  n=10 | finished 7 | total 5 | perfect 4 | urgentUP 22/30 | keys 184/240 | peak 3762 | read 65764 | secs 187
+anchored    n=10 | finished 8 | total 3 | perfect 1 | urgentUP 27/30 | keys 228/240 | peak 3958 | read 86950 | secs 355

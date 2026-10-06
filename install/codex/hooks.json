@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "node /ABSOLUTE/PATH/TO/agentjournal-hook.mjs pin", "timeout": 10 }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "node /ABSOLUTE/PATH/TO/agentjournal-hook.mjs journal", "timeout": 10 }] }
+    ],
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "node /ABSOLUTE/PATH/TO/agentjournal-hook.mjs wake", "timeout": 10 }] }
+    ]
+  }
+}
