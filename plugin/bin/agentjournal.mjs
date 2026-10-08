@@ -25,6 +25,10 @@ function findRoot() {
 	}
 }
 const read = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "");
+// Claude Code names the session and the window to the agent's shell. With them a note reaches only the session that
+// wrote it, and `status` reads this window's journal when several windows are open on one project.
+const session = process.env.CLAUDE_CODE_SESSION_ID;
+const windowTag = process.env.CLAUDE_PID ? `.${process.env.CLAUDE_PID}` : "";
 
 if (cmd === "note" || cmd === "sleep") {
 	const text = rest.join(" ").trim();
@@ -34,17 +38,17 @@ if (cmd === "note" || cmd === "sleep") {
 	}
 	const root = findRoot();
 	fs.mkdirSync(root, { recursive: true });
-	fs.appendFileSync(path.join(root, "INBOX.jsonl"), JSON.stringify({ kind: cmd, text, at: new Date().toISOString() }) + "\n");
+	fs.appendFileSync(path.join(root, "INBOX.jsonl"), JSON.stringify({ kind: cmd, text, at: new Date().toISOString(), ...(session ? { session } : {}) }) + "\n");
 	console.log(cmd === "sleep" ? "Journaled: topic closed. Continue from the pins and the journal." : "Journaled.");
 } else if (cmd === "status") {
 	const root = findRoot();
-	const dir = read(path.join(root, "LAST")).trim();
+	const dir = (read(path.join(root, `LAST${windowTag}`)) || read(path.join(root, "LAST"))).trim();
 	const lines = read(path.join(dir, "JOURNAL.md")).split("\n").filter(Boolean);
 	const pins = read(path.join(dir, "PINNED.md")).split("\n").filter((l) => /^### /.test(l)).length;
 	console.log(`journal folder: ${dir || "(none yet)"}`);
 	console.log(`pins: ${pins}   journal lines: ${lines.length}`);
 	for (const l of lines.filter((l) => /^\d+\. SLEEP /.test(l))) console.log(`topic: ${l}`);
-	if (fs.existsSync(path.join(root, "SLEEP_PENDING"))) console.log("sleep pending: the context can be cleared once this turn ends");
+	if (fs.existsSync(path.join(root, `SLEEP_PENDING${windowTag}`))) console.log("sleep pending: the context can be cleared once this turn ends");
 	const waiting = read(path.join(root, "INBOX.jsonl")).split("\n").filter(Boolean).length;
 	if (waiting) console.log(`not yet journaled: ${waiting} (taken in after this command finishes)`);
 } else if (cmd === "help" || cmd === "--help" || cmd === "-h") {

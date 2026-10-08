@@ -2,6 +2,10 @@
 
 **Pin what you were told. Journal what you did. Sleep when your head is full.**
 
+A memory for coding agents on long jobs. Your instructions are kept word for word, every action gets one line in a
+journal, and when the context is cut the agent reads both and carries on from where it was. It is measured against
+compaction on a small local model, and it has carried a real Claude Code session across a `/clear` (both below).
+
 Coding agents lose things in long jobs: a rule you gave at the start, how far they got, a number they were
 counting. They lose them when the context fills and gets cut (a summary, a compaction, a new session). People get
 through long jobs without remembering every word because they keep three things: **the instructions pinned where they
@@ -30,6 +34,8 @@ exact final line. Every trial is in `benchmark/results.jsonl` (169 trials).
 | model edits its own context (the "context language model" idea, via pi-clm) | 0 | 0 | 0 | 12.1K |
 | **AgentJournal** (pins + journal + sleep) | **10** | **10** | **8** | 9.5K |
 
+The two AgentJournal runs that were not all right each had one key of 24 wrong.
+
 The AgentJournal row is the research version (`benchmark/research-extension.ts`, mode `sleep`). The released
 extension (`pi/extensions/agentjournal.ts` 0.1.1, same design, pi's compaction left on) on 3 of those worlds:
 3/3 finished, 2/3 right total, 2/3 all of it right.
@@ -39,7 +45,8 @@ compaction stopped at 20, 29 and 44. **AgentJournal finished all 60 files every 
 and the released 0.1.1 (3/3). The running total is where it is weak at this length: right in 2/3 (research) and 1/3
 (0.1.1; it wrote 4 twice against a true 3). Over all 12 runs of this design at 60 files, including earlier builds, the
 total was right 7 times. (Build 0.1.0 stopped once at file 54: pi sized the reply from its full uncut history and left
-a 1-token answer; 0.1.1 raises the reply limit to what the trimmed request leaves.)
+a 1-token answer; 0.1.1 raises the reply limit to what the trimmed request leaves.) If a job needs a number at the
+end, have the agent recount it from its output.
 
 ## Sleep when a topic is done (0.2)
 
@@ -76,20 +83,43 @@ an agent picks topic boundaries by itself from the startup note alone is not mea
 Compute: AgentJournal read about 21K tokens per 24-file job against 17K for keeping everything and 23K for compaction,
 because between sleeps it only appends (the server reuses its cache).
 
-## What it is not
+## In a real session
 
-- **One small model, synthetic tasks.** Not yet measured on real coding sessions or on large models.
-- **Instructions alone do not work on small models.** As `AGENTS.md` text only, the 9B model never wrote a single
-  note (8 of 8 runs) and failed every 60-file job. AgentJournal works where **code** does the pinning and journaling: the pi
-  extension, or the hooks below. Strong models may follow the instructions; that is untested here.
-- **It does not clear a hook-only agent's context by itself.** Claude Code, Codex and Copilot keep their context
-  until they compact or you `/clear`; AgentJournal makes either safe, because the pins and the journal are put back, and
-  in Claude Code it tells you when the agent has closed a topic. Only pi (and Hermes, not yet ported) let AgentJournal
-  replace the context itself.
-- **A running count is not reliable at length.** It holds on the 24-file job but at 60 files it was right in about half
-  the runs. If the job needs a number at the end, have the agent recount it from its output.
-- **Rules applied at length still slip** on a small model (the format rule was missed on some files while it was in
-  plain view): that is the model, not the memory.
+The numbers above are one small model on a made-up job. We also left the Claude Code hooks on for a real one: about
+eleven hours of the session that built 0.2 and then went on to other work in the same project (Claude Opus 5.5,
+2026-10-06). From the notes it left:
+
+| | |
+|---|---|
+| actions journaled | 406 |
+| messages pinned | 17 |
+| topics the agent closed with `agentjournal sleep` | 1 |
+| notes it wrote with `agentjournal note` | 0 |
+| `/clear` followed by a wake-up | 1 |
+
+After the `/clear` the new context held the pins, the closed topic and the last 40 actions, and nothing else. From
+those the agent found the long build it had left running in the background, saw that it had stopped improving, and
+moved it to its next step, without asking what it had been doing.
+
+What that session showed that the benchmark could not:
+
+- **The journal says what was done, not why.** A line is the command or the file. The reasons were in the project's
+  own plan file, which the agent reread after waking. `agentjournal note` is for exactly those, and the agent did not
+  use it once: if a decision has to last, tell the agent to note it.
+- **The wake-up was 14.5 KB**, more than Claude Code shows inline, so it arrived as a short preview and a file to
+  open. The agent opened it.
+- **The `/clear` came more than a hundred actions after the sleep** and still woke up as "the end of a topic". A sleep you do not
+  follow with `/clear` stays pending until the next `/clear`.
+- **Three faults, all fixed in 0.2.1.** The notes followed the shell's working folder, so 167 of the 406
+  actions and 2 of the 17 messages were written to 16 other folders where the wake-up did not look. Background-task
+  events were pinned as if you had written them (36 of 53 pins). And the "this session slept" marker was one per
+  project, so with two windows open a `/clear` in one would have woken up on the other's journal. The notes now go
+  to the project folder wherever the agent `cd`s, only what you type is pinned, and the marker is kept per window.
+
+Each session has its own folder, `.agentjournal/<session>/`, with its own pins and journal. A note or a sleep written
+with the `agentjournal` command reaches only the session whose agent ran it.
+
+One session is one session. It is not a measurement, and Codex and Copilot have not had even that.
 
 ## Install
 
@@ -130,7 +160,8 @@ in Codex or Copilot themselves; the hook was tested against each tool's document
 
 ### Any other agent - instructions
 Paste `AGENTS-snippet.md` into `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` or your rules file, or install `SKILL.md` as a
-skill. Weakest form: it only works if the model follows it (see above).
+skill. Weakest form: it only works if the model follows it. The 9B model did not: as instructions only it wrote no
+notes in 8 of 8 runs and failed every 60-file job. Stronger models may follow them; that is untested here.
 
 ## Big jobs: churn with fresh workers
 

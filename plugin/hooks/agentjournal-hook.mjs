@@ -67,6 +67,30 @@ function summarise(input) {
 	return oneLine(JSON.stringify(input), 150);
 }
 
+// Where the notes go: AGENTJOURNAL_ROOT, else the project folder Claude Code names, else the nearest .agentjournal
+// above the working folder, else the working folder (the `agentjournal` command looks in the same order). Never the
+// working folder alone: every `cd` moves it, and the notes then scatter across the folders the agent visited.
+function findRoot(cwd) {
+	if (process.env.AGENTJOURNAL_ROOT) return process.env.AGENTJOURNAL_ROOT;
+	if (process.env.CLAUDE_PROJECT_DIR) return path.join(process.env.CLAUDE_PROJECT_DIR, ".agentjournal");
+	for (let dir = cwd; ; dir = path.dirname(dir)) {
+		if (fs.existsSync(path.join(dir, ".agentjournal"))) return path.join(dir, ".agentjournal");
+		if (path.dirname(dir) === dir) return path.join(cwd, ".agentjournal");
+	}
+}
+
+// A pin is what the user wrote. Background-task events arrive on the same hook and are not the user's words, and the
+// editor's "opened file" tag is not either.
+function typedByUser(prompt) {
+	const text = String(prompt).replace(/<ide_(opened_file|selection)>[\s\S]*?<\/ide_\1>/g, "").trim();
+	return /^<task-notification>/.test(text) ? "" : text;
+}
+
+// One Claude Code window keeps its process id across a /clear while the session id changes. What a /clear has to find
+// again (which session slept, which journal is this window's) is therefore kept per window, so two windows open on one
+// project never wake up on each other's notes. A tool that does not name its window shares one marker, as before.
+const WINDOW = process.env.CLAUDE_PID ? `.${process.env.CLAUDE_PID}` : "";
+
 const count = (file, marker) => read(file).split("\n").filter((l) => marker.test(l)).length;
 const append = (journal, text) => fs.appendFileSync(journal, `${count(journal, /^\d+\. /) + 1}. ${text}\n`);
 
@@ -98,21 +122,26 @@ function wakeText(pins, journal, why) {
 
 function main(action, ev) {
 	const e = normalise(ev);
-	// AGENTJOURNAL_ROOT overrides where the notes go (the `agentjournal` command reads the same variable).
-	const root = process.env.AGENTJOURNAL_ROOT || path.join(e.cwd, ".agentjournal");
+	const root = findRoot(e.cwd);
 	const own = path.join(root, e.session);
 	// After an agent-chosen /clear, the new session keeps writing to the folder of the session that slept (THREAD).
 	const dir = read(path.join(own, "THREAD")).trim() || own;
 	const pins = path.join(dir, "PINNED.md");
 	const journal = path.join(dir, "JOURNAL.md");
 	const flag = path.join(dir, "WAKE_ON_NEXT_TOOL");
-	const pending = path.join(root, "SLEEP_PENDING");
+	const pending = path.join(root, `SLEEP_PENDING${WINDOW}`);
+	// A marker 0.2.0 left (one per project) is taken over by the window whose journal it names.
+	const shared = path.join(root, "SLEEP_PENDING");
+	if (WINDOW && read(shared).trim() === dir) fs.renameSync(shared, pending);
 	const inbox = path.join(root, "INBOX.jsonl");
 	fs.mkdirSync(dir, { recursive: true });
-	if (action === "pin" || action === "journal") fs.writeFileSync(path.join(root, "LAST"), dir);
+	if (action === "pin" || action === "journal") {
+		fs.writeFileSync(path.join(root, "LAST"), dir);
+		if (WINDOW) fs.writeFileSync(path.join(root, `LAST${WINDOW}`), dir);
+	}
 
 	if (action === "pin") {
-		const prompt = String(e.prompt).trim();
+		const prompt = typedByUser(e.prompt);
 		if (!prompt) return;
 		const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
 		fs.appendFileSync(pins, `### ${count(pins, /^### /) + 1} (${stamp})\n${prompt}\n\n`);
@@ -120,8 +149,14 @@ function main(action, ev) {
 	}
 	if (action === "journal") {
 		// What the agent wrote with `agentjournal note|sleep` replaces the plain line for that command.
-		const asked = read(inbox).split("\n").filter(Boolean).map((l) => JSON.parse(l));
-		if (asked.length) fs.unlinkSync(inbox);
+		// Only what this session's own command left: an entry names its session when the command knew it.
+		const left = read(inbox).split("\n").filter(Boolean).map((l) => JSON.parse(l));
+		const asked = left.filter((a) => !a.session || a.session === e.session);
+		const others = left.filter((a) => a.session && a.session !== e.session);
+		if (asked.length) {
+			if (others.length) fs.writeFileSync(inbox, others.map((a) => JSON.stringify(a)).join("\n") + "\n");
+			else fs.unlinkSync(inbox);
+		}
 		if (!asked.length || !/\bagentjournal\b/.test(summarise(e.input))) {
 			append(journal, `${e.tool} ${summarise(e.input)}${e.failed ? " - FAILED" : ""}`);
 		}
