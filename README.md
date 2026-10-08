@@ -2,6 +2,8 @@
 
 **Pin what you were told. Journal what you did. Sleep when your head is full.**
 
+**Video:** [how it works, and the runs behind the numbers below](https://www.youtube.com/watch?v=kCJyx3Jlefk) (10 minutes).
+
 A memory for coding agents on long jobs. Your instructions are kept word for word, every action gets one line in a
 journal, and when the context is cut the agent reads both and carries on from where it was. It is measured against
 compaction on a small local model, and it has carried a real Claude Code session across a `/clear` (both below).
