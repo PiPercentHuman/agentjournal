@@ -18,6 +18,9 @@ Keep two files in a `.agentjournal/` folder in the working directory.
 
 - Write it before you start the work. Add to it whenever the user adds or changes an instruction.
 - Never summarise, reword or delete a pin. If the user cancels one, add a new pin that says so.
+- When the user changes an instruction, pin the new words and note the journal line they arrived after
+  (`### 4 (after action 37)`). Where two pins disagree, the later one is what the user wants now: follow it, and
+  check the work journaled before it against it.
 - A rule you were given once (a format, a limit, a final step) is exactly what a summary loses. The pin keeps it.
 
 ## 2. JOURNAL: what you did, one line per action
@@ -63,7 +66,7 @@ JOURNAL: 31. worker: records 3001-3100 - 4 invalid (ids 3017, 3044, 3090, 3099);
 
 ## 5. Before you say "done"
 
-- Check every pin against what you actually produced. **Read the output back**; do not check against memory.
+- Check every pin that a later one has not replaced against what you actually produced. **Read the output back**; do not check against memory.
 - Recount any number from the journal or the output, and write the number you counted.
 - Only then report the job finished.
 

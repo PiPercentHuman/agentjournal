@@ -85,6 +85,29 @@ an agent picks topic boundaries by itself from the startup note alone is not mea
 Compute: AgentJournal read about 21K tokens per 24-file job against 17K for keeping everything and 23K for compaction,
 because between sleeps it only appends (the server reuses its cache).
 
+## When you change an instruction (0.2.2)
+
+A memory that keeps the first plan and loses the correction keeps the wrong plan. Pins are never rewritten, so when
+you change an instruction partway the old message and the new one are both kept. From 0.2.2:
+
+- **The later pin stands.** The wake-up, and the memory block in pi, list the pins oldest first and say it in one
+  line: where two pins disagree, the later one is what you want now.
+- **Each pin says where in the job it arrived:** `### 4 (2026-10-06 11:16, after action 37)`. Journal lines and
+  closed topics numbered below that were done before it, and the agent is told to check that work against the pin.
+- **No pin is left out of a long session.** Before 0.2.2 a pin file over 8,000 characters woke up as the first pin
+  and the latest ones, with a count in place of everything between, so a correction from the middle could be missing
+  while the message it corrected was shown. Now the first and the latest pins are whole, and each pin between them
+  shows its first 160 characters (a shorter one is whole), with the full text in the pin file.
+
+What is checked: `node --test` builds a session where the final line is changed partway, sleeps, clears, and reads what
+the hook and the pi extension hand to the model (3 checks, no model). What is not: which pin a model then follows.
+Every trial above gives its rules once and never changes them; a run that changes a rule between two topics and
+scores the second topic has not been done.
+
+One limit stays. A correction is pinned as you wrote it, and "no, the other one" does not say what it answered: the
+journal holds the agent's actions, not its replies. If a change has to stand on its own after a clear, write it in
+full.
+
 ## In a real session
 
 The numbers above are one small model on a made-up job. We also left the Claude Code hooks on for a real one: about
@@ -187,6 +210,7 @@ Built on [pi](https://github.com/earendil-works/pi) (MIT). The benchmark compare
 - `install/`: hook configs for a Claude Code project, Codex and Copilot.
 - `pi/`: the pi extension (`extensions/agentjournal.ts`) and the pi launcher (`bin/agentjournal.mjs`, run by
   `agentjournal pi`).
+- `test/`: checks with no model (`node --test`): what the wake-up holds after an instruction is changed partway.
 - `benchmark/`: the harness as run (`pilot.py`; paths assume our layout), `run_full.sh` and `run_long.sh`, the
   research extension with all 15 variants we screened (`research-extension.ts`), and every trial in `results.jsonl`.
   Labels in that file: `control` keeps everything, `compaction` is pi's compaction, `clm` is pi-clm, `anchor` with

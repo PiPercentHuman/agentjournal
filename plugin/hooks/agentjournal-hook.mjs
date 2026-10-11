@@ -5,7 +5,9 @@
 // One script for Claude Code, Codex and GitHub Copilot. The event comes as the first argument, because
 // Copilot's native payload does not always name it:
 //   node agentjournal-hook.mjs pin         on UserPromptSubmit / userPromptSubmitted -> .agentjournal/<session>/PINNED.md
-//   node agentjournal-hook.mjs journal     on PostToolUse(Failure) / postToolUse     -> .agentjournal/<session>/JOURNAL.md
+//                                          (stamped with the journal line it arrived after; where two pins disagree
+//                                          the later one stands, and the wake-up says so)
+//   node agentjournal-hook.mjs journal    on PostToolUse(Failure) / postToolUse     -> .agentjournal/<session>/JOURNAL.md
 //                                          (also takes in what `agentjournal note|sleep` left in .agentjournal/INBOX.jsonl)
 //   node agentjournal-hook.mjs ask         on Claude Code PreToolUse(Bash): `agentjournal sleep` asks the user first
 //                                          (Allow = close the topic; Deny = keep working in this context)
@@ -21,7 +23,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MAX_PINS_CHARS = 8000; // longer pin files are shown as the first pin + the latest ones
+const MAX_PINS_CHARS = 8000; // longer pin files: the first pin and the latest ones whole, each pin between cut short
+const PIN_CUT = 160; // what is shown of a pin between them (a change of mind is usually shorter than this)
 const JOURNAL_TAIL = 40;
 
 // The `agentjournal` command as the agent can run it: the plugin's own folder is not on the shell's PATH.
@@ -100,7 +103,17 @@ function wakeText(pins, journal, why) {
 		const blocks = pinText.split(/\n(?=### )/);
 		const tail = [];
 		for (let i = blocks.length - 1; i > 0 && tail.join("\n").length < MAX_PINS_CHARS / 2; i--) tail.unshift(blocks[i]);
-		pinText = `${blocks[0]}\n\n(... ${blocks.length - 1 - tail.length} more pins in ${pins} ...)\n\n${tail.join("\n")}`;
+		// No pin is left out: a change of mind in the middle of a long session binds as much as the first message.
+		let cut = 0;
+		const middle = blocks.slice(1, blocks.length - tail.length).map((b) => {
+			const [head, ...body] = b.split("\n");
+			const said = body.join(" ").replace(/\s+/g, " ").trim();
+			if (said.length <= PIN_CUT) return b;
+			cut++;
+			return `${head}\n${said.slice(0, PIN_CUT)} [...]\n`;
+		});
+		const note = cut ? `(${cut} of the pins below end in [...]: they are cut short here, and whole in ${pins})\n\n` : "";
+		pinText = `${blocks[0]}\n\n${note}${middle.join("\n")}\n${tail.join("\n")}`;
 	}
 	const lines = read(journal).trim().split("\n").filter(Boolean);
 	const topics = lines.filter((l) => /^\d+\. SLEEP /.test(l));
@@ -108,14 +121,18 @@ function wakeText(pins, journal, why) {
 		`AGENTJOURNAL WAKE-UP (${why}). What you remember of earlier work is now a summary, or nothing.`,
 		"The pins and the journal below were written as things happened. They are the truth; your recollection is not.",
 		"",
-		`## PINNED - the user's instructions, word for word (${pins})`,
+		`## PINNED - what the user wrote, word for word, oldest first (${pins})`,
+		"Where two pins disagree, the later one is what the user wants now: follow it, and take the earlier one as replaced.",
+		'A pin marked "after action N" arrived after journal line N. Work journaled before that line was done under the',
+		"instructions as they stood then; if the pin changes them, check that work against the pin before you build on it.",
+		"",
 		pinText,
 		"",
 		...(topics.length ? [`## TOPICS CLOSED - ${topics.length}, in order`, ...topics, ""] : []),
 		`## JOURNAL - your last ${Math.min(JOURNAL_TAIL, lines.length)} of ${lines.length} actions (${journal})`,
 		lines.length ? lines.slice(-JOURNAL_TAIL).join("\n") : "(no actions journaled yet)",
 		"",
-		"Continue from these. Check every pin before you say you are done, and recount any number from the journal or the output, not from memory.",
+		"Continue from these. Before you say you are done, check every pin that a later one has not replaced, and recount any number from the journal or the output, not from memory.",
 		howToSleep(),
 	].join("\n");
 }
@@ -144,7 +161,9 @@ function main(action, ev) {
 		const prompt = typedByUser(e.prompt);
 		if (!prompt) return;
 		const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
-		fs.appendFileSync(pins, `### ${count(pins, /^### /) + 1} (${stamp})\n${prompt}\n\n`);
+		// Where in the job the message arrived: what was journaled before it was done without it.
+		const done = count(journal, /^\d+\. /);
+		fs.appendFileSync(pins, `### ${count(pins, /^### /) + 1} (${stamp}${done ? `, after action ${done}` : ""})\n${prompt}\n\n`);
 		return;
 	}
 	if (action === "journal") {

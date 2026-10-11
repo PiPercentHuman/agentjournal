@@ -2,7 +2,8 @@
  * AgentJournal for pi: pin what you were told, journal what you did, sleep when your head is full.
  *
  * Before every request the model sees exactly this, and nothing older:
- *   PINNED  every message the user wrote, word for word. Fixed.
+ *   PINNED  every message the user wrote, word for word, oldest first, each marked with the step it arrived after.
+ *           Never rewritten; where two disagree, the model is told the later one stands.
  *   JOURNAL one line for each action older than the steps below: what the model did, never what it read.
  *   the raw steps since the last sleep (tool calls and their results).
  * While awake, the raw steps only grow at the end, so the server can reuse what it already read. When they pass
@@ -53,6 +54,7 @@ export default function (pi: ExtensionAPI) {
 	} catch {}
 	const dir = path.join(root, new Date().toISOString().replace(/[:.]/g, "-"));
 	let pins: string[] = [];
+	let pinHeads: string[] = []; // "### 2 (after step 17)": the journal line a message arrived after
 	let journal = ""; // frozen between sleeps, so the memory message stays byte-for-byte the same
 	let cutAt = -1; // where the raw steps kept since the last sleep begin (-1: no sleep yet)
 	let written = 0; // assistant turns already written to JOURNAL.md
@@ -63,8 +65,10 @@ export default function (pi: ExtensionAPI) {
 			"# AGENTJOURNAL",
 			"Older conversation is gone. This, and your steps since the last sleep, are all you can see.",
 			"",
-			"## PINNED (what the user asked, word for word; fixed)",
-			...pins.map((p, i) => `### ${i + 1}\n${p}`),
+			"## PINNED (what the user wrote, word for word, oldest first)",
+			"Where two pins disagree, the later one is what the user wants now: follow it, and take the earlier one as replaced.",
+			'A pin marked "after step N" arrived after journal line N: the steps before it were done without it.',
+			...pins.map((p, i) => `${pinHeads[i]}\n${p}`),
 			"",
 			"## JOURNAL (what you did, one line a step; what you read is gone once it leaves your recent steps)",
 			journal || "(nothing older than your recent steps yet)",
@@ -110,7 +114,14 @@ export default function (pi: ExtensionAPI) {
 		const users = msgs.filter((m) => m.role === "user").map(text);
 		if (users.length !== pins.length) {
 			pins = users;
-			fs.writeFileSync(path.join(dir, "PINNED.md"), pins.map((p, i) => `### ${i + 1}\n${p}\n`).join("\n"));
+			// The step each message arrived after, counted the way the journal numbers its lines, so the two can be compared.
+			let steps = 0;
+			pinHeads = [];
+			for (const m of msgs) {
+				if (m.role === "assistant") steps++;
+				else if (m.role === "user") pinHeads.push(`### ${pinHeads.length + 1}${steps ? ` (after step ${steps})` : ""}`);
+			}
+			fs.writeFileSync(path.join(dir, "PINNED.md"), pins.map((p, i) => `${pinHeads[i]}\n${p}\n`).join("\n"));
 		}
 		if (turns.length > written) {
 			fs.appendFileSync(path.join(dir, "JOURNAL.md"), turns.slice(written).map((m, i) => `${written + i + 1}. ${action(m)}\n`).join(""));
