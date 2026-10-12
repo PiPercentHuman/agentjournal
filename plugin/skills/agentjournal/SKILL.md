@@ -21,6 +21,21 @@ Keep two files in a `.agentjournal/` folder in the working directory.
 - When the user changes an instruction, pin the new words and note the journal line they arrived after
   (`### 4 (after action 37)`). Where two pins disagree, the later one is what the user wants now: follow it, and
   check the work journaled before it against it.
+- **Then write the changed instruction out in full, under the pin it changes,** while you still have the
+  conversation. A short change ("use the other one instead") only makes sense beside what it answered, and that
+  is what gets cut. The pin above it stays exactly as the user wrote it:
+
+  ```
+  ### 2
+  ... the final line of the report must say exactly: END ALPHA ...
+
+  #### 2.1 updated by pin 4 (how this part stands now; it replaces that part of pin 2 above)
+  The final line of the report must say exactly: END BRAVO
+  ```
+
+  With the `agentjournal` command installed, `agentjournal update 2 "<the instruction as it stands now, in full>"`
+  writes that sub-chapter (`agentjournal pins` lists the pins by number). When you are asked whether a message
+  changes an earlier pin and it does not, answer `agentjournal same`.
 - A rule you were given once (a format, a limit, a final step) is exactly what a summary loses. The pin keeps it.
 
 ## 2. JOURNAL: what you did, one line per action

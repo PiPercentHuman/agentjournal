@@ -4,7 +4,11 @@ For any long job, keep two files in `.agentjournal/` in the working directory:
 
 1. **PIN** - `.agentjournal/PINNED.md`: every instruction the user gives, copied word for word and numbered, written
    before you start and added to when instructions change (with the journal line the change arrived after). Never
-   summarise, reword or delete a pin. Where two pins disagree, the later one is what the user wants now.
+   summarise, reword or delete a pin. Where two pins disagree, the later one is what the user wants now. When a
+   message changes something an earlier pin asked for, also write that instruction out in full as it stands now,
+   as a sub-chapter under the earlier pin (`#### 2.1 updated by pin 4`, then the instruction), while you still
+   have the conversation: a short change does not make sense without it. With the `agentjournal` command installed:
+   `agentjournal update 2 "<the instruction as it stands now, in full>"`.
 2. **JOURNAL** - `.agentjournal/JOURNAL.md`: after every action, append one short line of what you did and what came of it
    (not what you read). Anything a pin asks you to track goes on the line where it changes, as the items
    themselves (`files changed so far: billing.ts, users.ts`). Never rewrite earlier lines.

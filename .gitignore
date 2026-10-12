@@ -1,3 +1,4 @@
 node_modules/
 .agentjournal/
 __pycache__/
+benchmark/correction-runs/

@@ -6,9 +6,14 @@
 // Copilot's native payload does not always name it:
 //   node agentjournal-hook.mjs pin         on UserPromptSubmit / userPromptSubmitted -> .agentjournal/<session>/PINNED.md
 //                                          (stamped with the journal line it arrived after; where two pins disagree
-//                                          the later one stands, and the wake-up says so)
-//   node agentjournal-hook.mjs journal    on PostToolUse(Failure) / postToolUse     -> .agentjournal/<session>/JOURNAL.md
-//                                          (also takes in what `agentjournal note|sleep` left in .agentjournal/INBOX.jsonl)
+//                                          the later one stands, and the wake-up says so. From the second message on
+//                                          it also asks the agent to write out, in full, any earlier instruction the
+//                                          message changes: `agentjournal update <pin> "<...>"`)
+//   node agentjournal-hook.mjs journal     on PostToolUse(Failure) / postToolUse     -> .agentjournal/<session>/JOURNAL.md
+//                                          (also takes in what `agentjournal note|sleep|update|same` left in
+//                                          .agentjournal/INBOX.jsonl; an update goes to UPDATES.jsonl and is shown
+//                                          under the pin it changes at every wake-up. A sleep asks once more for the
+//                                          updates not yet written, before the conversation they depend on is cleared)
 //   node agentjournal-hook.mjs ask         on Claude Code PreToolUse(Bash): `agentjournal sleep` asks the user first
 //                                          (Allow = close the topic; Deny = keep working in this context)
 //   node agentjournal-hook.mjs stop        on Stop: after `agentjournal sleep`, tell the user (and the desktop) to /clear
@@ -36,7 +41,13 @@ function cliCommand() {
 const howToSleep = () =>
 	`When you finish a topic (a part of the job that stands on its own), close it: run \`${cliCommand()} sleep "<what it came to, ` +
 	`in one line: files, numbers, decisions>"\`, then end your turn. The context can then be cleared, and you continue from the pins and ` +
-	`the journal. For a fact you must keep (a count, a list so far, a decision): \`${cliCommand()} note "<line>"\`.`;
+	`the journal. For a fact you must keep (a count, a list so far, a decision): \`${cliCommand()} note "<line>"\`. ${howToUpdate()}`;
+// A pin keeps the user's words, and a short change ("use the other one instead") only makes sense beside the
+// conversation it was said in. The agent writes the changed instruction out in full while it still has that conversation.
+const howToUpdate = () =>
+	`When a message changes something an earlier pin asked for, record how that instruction stands now, in full, before you go on: ` +
+	`\`${cliCommand()} update <number of the earlier pin> "<only the instruction that changed, as it stands now, complete enough ` +
+	`to follow without this conversation; not the rest of that pin>"\` (\`${cliCommand()} pins\` lists the pins by number).`;
 
 const oneLine = (s, n = 200) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 const read = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "");
@@ -97,9 +108,22 @@ const WINDOW = process.env.CLAUDE_PID ? `.${process.env.CLAUDE_PID}` : "";
 const count = (file, marker) => read(file).split("\n").filter((l) => marker.test(l)).length;
 const append = (journal, text) => fs.appendFileSync(journal, `${count(journal, /^\d+\. /) + 1}. ${text}\n`);
 
+// The updated versions the agent wrote with `agentjournal update`, shown as sub-chapters under the pin they change.
+// The pin itself stays as the user wrote it.
+function withUpdates(block, updates) {
+	const n = Number((block.match(/^### (\d+)/) ?? [])[1]);
+	const mine = updates.filter((u) => u.pin === n);
+	if (!mine.length) return block;
+	const subs = mine.map((u, k) => `#### ${n}.${k + 1} updated by pin ${u.by} (how this part stands now; it replaces that part of pin ${n} above)\n${u.text}`);
+	return `${block.trimEnd()}\n\n${subs.join("\n\n")}\n`;
+}
+
 function wakeText(pins, journal, why) {
 	let pinText = read(pins).trim() || "(no pins yet)";
-	if (pinText.length > MAX_PINS_CHARS) {
+	const updates = read(path.join(path.dirname(pins), "UPDATES.jsonl")).split("\n").filter(Boolean).map((l) => JSON.parse(l));
+	if (pinText.length <= MAX_PINS_CHARS) {
+		if (updates.length) pinText = pinText.split(/\n(?=### )/).map((b) => withUpdates(b, updates)).join("\n");
+	} else {
 		const blocks = pinText.split(/\n(?=### )/);
 		const tail = [];
 		for (let i = blocks.length - 1; i > 0 && tail.join("\n").length < MAX_PINS_CHARS / 2; i--) tail.unshift(blocks[i]);
@@ -108,12 +132,12 @@ function wakeText(pins, journal, why) {
 		const middle = blocks.slice(1, blocks.length - tail.length).map((b) => {
 			const [head, ...body] = b.split("\n");
 			const said = body.join(" ").replace(/\s+/g, " ").trim();
-			if (said.length <= PIN_CUT) return b;
+			if (said.length <= PIN_CUT) return withUpdates(b, updates);
 			cut++;
-			return `${head}\n${said.slice(0, PIN_CUT)} [...]\n`;
+			return withUpdates(`${head}\n${said.slice(0, PIN_CUT)} [...]\n`, updates); // an updated version is never cut
 		});
 		const note = cut ? `(${cut} of the pins below end in [...]: they are cut short here, and whole in ${pins})\n\n` : "";
-		pinText = `${blocks[0]}\n\n${note}${middle.join("\n")}\n${tail.join("\n")}`;
+		pinText = `${withUpdates(blocks[0], updates)}\n\n${note}${middle.join("\n")}\n${tail.map((b) => withUpdates(b, updates)).join("\n")}`;
 	}
 	const lines = read(journal).trim().split("\n").filter(Boolean);
 	const topics = lines.filter((l) => /^\d+\. SLEEP /.test(l));
@@ -125,6 +149,9 @@ function wakeText(pins, journal, why) {
 		"Where two pins disagree, the later one is what the user wants now: follow it, and take the earlier one as replaced.",
 		'A pin marked "after action N" arrived after journal line N. Work journaled before that line was done under the',
 		"instructions as they stood then; if the pin changes them, check that work against the pin before you build on it.",
+		...(updates.length
+			? ['A sub-chapter under a pin ("#### 1.1 updated by pin 2") is that instruction written out in full as it stands now. You wrote it when the change arrived; the user\'s own words are the pins.']
+			: []),
 		"",
 		pinText,
 		"",
@@ -146,6 +173,7 @@ function main(action, ev) {
 	const pins = path.join(dir, "PINNED.md");
 	const journal = path.join(dir, "JOURNAL.md");
 	const flag = path.join(dir, "WAKE_ON_NEXT_TOOL");
+	const checked = path.join(dir, "CHECKED"); // the last pin the agent was asked about, or answered for
 	const pending = path.join(root, `SLEEP_PENDING${WINDOW}`);
 	// A marker 0.2.0 left (one per project) is taken over by the window whose journal it names.
 	const shared = path.join(root, "SLEEP_PENDING");
@@ -163,11 +191,21 @@ function main(action, ev) {
 		const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
 		// Where in the job the message arrived: what was journaled before it was done without it.
 		const done = count(journal, /^\d+\. /);
-		fs.appendFileSync(pins, `### ${count(pins, /^### /) + 1} (${stamp}${done ? `, after action ${done}` : ""})\n${prompt}\n\n`);
+		const n = count(pins, /^### /) + 1;
+		fs.appendFileSync(pins, `### ${n} (${stamp}${done ? `, after action ${done}` : ""})\n${prompt}\n\n`);
+		// From the second message on, ask for the updated version now, while the agent still has the conversation the
+		// message was said in. Claude Code and Codex hand this to the model with the message; a tool that ignores the
+		// output of this event still has the same sentence from the start of the session.
+		if (n > 1) {
+			const text = `AgentJournal: this message is pin ${n}. ${howToUpdate()} If it changes nothing an earlier pin asked for, ignore this.`;
+			process.stdout.write(JSON.stringify(ev.hook_event_name
+				? { hookSpecificOutput: { hookEventName: ev.hook_event_name, additionalContext: text } }
+				: { additionalContext: text }));
+		}
 		return;
 	}
 	if (action === "journal") {
-		// What the agent wrote with `agentjournal note|sleep` replaces the plain line for that command.
+		// What the agent wrote with `agentjournal note|sleep|update` replaces the plain line for that command.
 		// Only what this session's own command left: an entry names its session when the command knew it.
 		const left = read(inbox).split("\n").filter(Boolean).map((l) => JSON.parse(l));
 		const asked = left.filter((a) => !a.session || a.session === e.session);
@@ -181,12 +219,36 @@ function main(action, ev) {
 		}
 		let slept = false;
 		for (const a of asked) {
+			if (a.kind === "update") {
+				// Kept whole, beside the pins: it is shown under the pin it changes at every wake-up.
+				const by = count(pins, /^### /);
+				fs.appendFileSync(path.join(dir, "UPDATES.jsonl"), JSON.stringify({ pin: a.pin, by, text: a.text, at: a.at }) + "\n");
+				append(journal, `UPDATE pin ${a.pin} (changed by pin ${by}): ${oneLine(a.text, 600)}`);
+				fs.writeFileSync(checked, String(by));
+				continue;
+			}
+			if (a.kind === "same") {
+				append(journal, `NOTE pin ${count(pins, /^### /)} changes no earlier pin`);
+				fs.writeFileSync(checked, String(count(pins, /^### /)));
+				continue;
+			}
 			append(journal, `${a.kind === "sleep" ? "SLEEP" : "NOTE"} ${oneLine(a.text, 600)}`);
 			if (a.kind === "sleep") slept = true;
 		}
 		const context = [];
 		if (slept) {
 			fs.writeFileSync(pending, dir);
+			// The last moment the conversation still exists: a change that was never written out in full goes with it.
+			const n = count(pins, /^### /);
+			const upTo = Number(read(checked)) || 1;
+			if (n > upTo) {
+				fs.writeFileSync(checked, String(n));
+				context.push(
+					`AgentJournal: before the context is cleared, look at pin${n - upTo > 1 ? `s ${upTo + 1} to ${n}` : ` ${n}`} ` +
+						`(the user's message${n - upTo > 1 ? "s" : ""} since you last checked). ${howToUpdate()} After the clear only the pins and what is ` +
+						"written under them remain.",
+				);
+			}
 			context.push(
 				"AgentJournal: topic closed and written to the journal. End your turn now with one short line of status and " +
 					"start nothing new: the context can be cleared now, and you continue from the pins and the journal.",
