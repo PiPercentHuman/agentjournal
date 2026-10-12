@@ -319,7 +319,7 @@ Built on [pi](https://github.com/earendil-works/pi) (MIT). The benchmark compare
   extension. A trial is scored by plain code from the answers file it wrote; `score` holds the result.
   The correction test is `correction_test.py` (`run_correction.sh` and `run_correction_terse.sh` run all of it, `correction_table.py` counts
   `correction-results.jsonl` and `correction-earlier-wordings.jsonl`); its arm `keep` cuts nothing, `0.2.1` and
-  `0.2.2` are the extension as released (commits e973d6b and a063493), `marked` and `updated` are 0.2.2 with pin 1
+  `0.2.2` are the extension as released (commits 8088bae and c414044), `marked` and `updated` are 0.2.2 with pin 1
   marked, or given its updated version, by the test, and `0.3.0` is the extension in this repository.
 
 Run on 2026-10-05 and 2026-10-06 (the correction test on 2026-10-11 and 2026-10-12) with pi 1.0.3 and pi-clm 1.0.0. Model: Qwen3.5-9B (unsloth Q4_K_M GGUF) served by

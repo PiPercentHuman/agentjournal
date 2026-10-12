@@ -20,7 +20,7 @@
 # Arm `0.3.0`: this repository's extension. Nothing is written for the model: with the second message it is asked
 # whether the message changes an earlier pin, and it writes the updated version itself (`agentjournal update`).
 # `updates` in the record is what it wrote; `update_right` says one of them is for pin 1 and holds the new line only.
-# The arms 0.2.2, marked and updated run the extension as released in 0.2.2 (commit a063493).
+# The arms 0.2.2, marked and updated run the extension as released in 0.2.2 (commit c414044).
 # Needs llama-server on 127.0.0.1:8090 serving qwen35-9b, and PI_DIR = a folder with pi in node_modules.
 # Usage: python correction_test.py <arm> <seed> [--late] [--terse]
 import json, os, random, re, shutil, subprocess, sys, time
@@ -101,7 +101,7 @@ def released(tag):
     """The extension as it was in a release, taken from this repository's history."""
     file = os.path.join(RUNS, f"agentjournal-{tag}.ts")
     if not os.path.exists(file):
-        commit = {"0.2.1": "e973d6b", "0.2.2": "a063493"}[tag]
+        commit = {"0.2.1": "8088bae", "0.2.2": "c414044"}[tag]
         open(file, "wb").write(subprocess.run(["git", "-C", PKG, "show", f"{commit}:pi/extensions/agentjournal.ts"], capture_output=True, check=True).stdout)
     return file
 
