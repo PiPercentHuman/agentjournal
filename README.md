@@ -2,6 +2,10 @@
 
 **Pin what you were told. Journal what you did. Sleep when your head is full.**
 
+**Current version: 0.3.0** (the pi extension, the Claude Code plugin, the hooks for Codex and Copilot, and the
+`agentjournal` command are one package with one version). Where 0.2.1 and 0.2.2 appear below, they are the releases
+before it, kept in the tables to show what each change did.
+
 **Video:** [how it works, and the runs behind the numbers below](https://www.youtube.com/watch?v=VtwJpJ0KM5E) (10 minutes).
 
 A memory for coding agents on long jobs. Your instructions are kept word for word, every action gets one line in a
@@ -145,9 +149,9 @@ worlds each, the same two or three messages in every row:
 | | recent: ended on the new line | late: ended on the new line | late: also wrote a final line too early |
 |---|---|---|---|
 | nothing cut (no extension) | 10 of 10 | 10 of 10 | 1 of 10 |
-| AgentJournal 0.2.1 | 10 of 10 | 10 of 10 | 4 of 10 |
-| AgentJournal 0.2.2 | 10 of 10 | 9 of 10 | 5 of 10 |
-| AgentJournal 0.3.0 | not run | 10 of 10 | 1 of 10 |
+| AgentJournal 0.2.1 (earlier release) | 10 of 10 | 10 of 10 | 4 of 10 |
+| AgentJournal 0.2.2 (earlier release) | 10 of 10 | 9 of 10 | 5 of 10 |
+| **AgentJournal 0.3.0 (current)** | not run | 10 of 10 | 1 of 10 |
 
 - **The change survived the sleep in 39 of 40 runs on 0.2.1 and 0.2.2, and in 10 of 10 on 0.3.0.** Up to 0.2.2
   every fold came before the last topic began, so by then the change was a pin and nothing else. In 0.3.0 the second
@@ -168,10 +172,10 @@ now opens with "Use END 4T-HERON instead." and nothing else about the change:
 | | ended on the new line |
 |---|---|
 | nothing cut (no extension) | 5 of 10 |
-| AgentJournal 0.2.2 | 1 of 10 |
-| 0.2.2, pin 1 marked `(pin 2 changes part of this: the final line)` | 1 of 10 |
-| 0.2.2, the changed rule written out in full under pin 1 by the test | 10 of 10 |
-| **AgentJournal 0.3.0**, the agent writes the updated version itself | 7 of 10 |
+| AgentJournal 0.2.2 (earlier release) | 1 of 10 |
+| 0.2.2 with pin 1 marked `(pin 2 changes part of this: the final line)` by the test | 1 of 10 |
+| 0.2.2 with the changed rule written out in full under pin 1 by the test | 10 of 10 |
+| **AgentJournal 0.3.0 (current)**, the agent writes the updated version itself | 7 of 10 |
 
 - **The short change fails half the time with nothing cut, and nine times in ten with AgentJournal.** A pin keeps
   your words, and these words need the conversation around them. In 3 of the 10 AgentJournal runs the agent wrote
