@@ -275,7 +275,9 @@ When you see "safe to /clear", run it: you get an empty context that wakes up fr
 between. You can also `/clear` whenever the context is heavy, but a `/clear` the agent did not ask for starts blank.
 
 ### Codex CLI and GitHub Copilot - hooks
-Copy `plugin/hooks/agentjournal-hook.mjs` somewhere stable, put its absolute path into `install/codex/hooks.json`
+Copy `plugin/hooks/agentjournal-hook.mjs` and `plugin/bin/agentjournal.mjs` into the same stable folder (the hook
+tells the agent to run the command from beside itself; with only the hook copied, `agentjournal sleep`, `note` and
+`update` need `npm i -g` of this repo to be on the PATH). Put the hook's absolute path into `install/codex/hooks.json`
 (→ `.codex/hooks.json`) or `install/copilot/agentjournal.json` (→ `.github/hooks/`). Copilot has no event after
 compaction, so the hook marks `preCompact` and hands the wake-up to the model on the next tool call. Not yet tested
 in Codex or Copilot themselves; the hook was tested against each tool's documented payloads.
