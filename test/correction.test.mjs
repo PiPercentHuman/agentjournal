@@ -100,6 +100,26 @@ test("pi: after a sleep the changed instruction is still pinned, marked with the
 	assert.deepEqual(sent.slice(1).map((m) => m.role), ["assistant", "toolResult"], "only the step that slept is left of the raw conversation");
 });
 
+// A message may arrive with no content at all (an empty tool or system turn). The token estimate used to do
+// JSON.stringify(undefined).length on it and throw "Cannot read properties of undefined (reading 'length')" from
+// the context handler on every request, which pi reported as an extension error.
+test("pi: a message with no content does not break the context handler", async () => {
+	const root = tmp();
+	process.env.AGENTJOURNAL_ROOT = root;
+	const handlers = {};
+	const extension = (await import(pathToFileURL(path.join(repo, "pi", "extensions", "agentjournal.ts")).href)).default;
+	extension({ on: (name, fn) => (handlers[name] = fn) });
+	const messages = [
+		{ role: "user", content: "Do topic 1." },
+		{ role: "assistant" },
+		{ role: "assistant", content: [{ type: "toolCall", name: "bash", arguments: { command: "ls" } }] },
+		{ role: "toolResult", content: undefined },
+	];
+	const sent = (await handlers.context({ messages })).messages;
+	assert.equal(sent[0].role, "user", "the pin is still first");
+	assert.ok(sent.some((m) => m.role === "toolResult"), "the contentless message is kept");
+});
+
 // The updated version: the agent writes the changed instruction out in full, and it is kept under the pin it changes.
 const cli = (root, session, ...args) =>
 	spawnSync(process.execPath, [CLI, ...args], { env: env(root, { CLAUDE_CODE_SESSION_ID: session }), encoding: "utf8" });
