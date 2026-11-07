@@ -1,0 +1,1 @@
+{"tag": "shipped-haiku-f3-l40-s1", "secs": 8.7, "events": [["read", 0.0, 1], ["write", 1.4, 1, "NERIDRA"], ["read", 3.5, 2], ["write", 4.8, 2, "TUBATU"], ["read", 6.1, 3], ["write", 7.6, 3, "TUNEFIR"], ["say", 8.7, "FINISHED"]], "requests": [[0.0, 22321], [1.4, 23510], [3.5, 23689], [4.8, 24763], [6.1, 24939], [7.6, 26025], [8.7, 26264]]}

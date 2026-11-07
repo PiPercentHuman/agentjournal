@@ -1,0 +1,15 @@
+Validating plugin manifest: mods\agentjournal\.claude-plugin\plugin.json
+
+⚠ Found 1 warning:
+
+  ❯ author: No author information provided. Consider adding author details for plugin attribution
+
+Validating hooks: mods\agentjournal\hooks\hooks.json
+
+  ❯ ./register.ts hooks: prompt.submit, tool.call, session.compact
+  ❯ ./register.ts gating hook with .catch: prompt.submit
+  ❯ ./register.ts gating hook with .catch: tool.call
+  ❯ ./register.ts gating hook with .catch: session.compact
+  ❯ ./register.ts calls: $.fs.write
+
+✔ Validation passed with warnings

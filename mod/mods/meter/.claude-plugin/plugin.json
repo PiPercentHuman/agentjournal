@@ -1,0 +1,5 @@
+{
+  "name": "meter",
+  "version": "0.1.0",
+  "description": "Changes nothing. Writes every request's token counts and every compaction to .meter/log.jsonl."
+}

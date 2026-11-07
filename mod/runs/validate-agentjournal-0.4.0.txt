@@ -1,0 +1,16 @@
+Validating plugin manifest: mods\agentjournal\.claude-plugin\plugin.json
+
+⚠ Found 1 warning:
+
+  ❯ author: No author information provided. Consider adding author details for plugin attribution
+
+Validating hooks: mods\agentjournal\hooks\hooks.json
+
+  ❯ ./register.ts hooks: prompt.submit, tool.call, turn.complete, prompt.context, session.compact
+  ❯ ./register.ts hooks on prompt.context, session.compact do not run in a plugin a person installs where an organization manages Claude Code: there, these events pass over the plugins you install, and only a plugin the organization lists in managed settings runs them
+  ❯ ./register.ts gating hook with .catch: prompt.submit
+  ❯ ./register.ts gating hook with .catch: tool.call
+  ❯ ./register.ts gating hook with .catch: session.compact
+  ❯ ./register.ts calls: $.command.run (via clearAndGoOn), $.fs.write, $.prompt.submit (via clearAndGoOn)
+
+✔ Validation passed with warnings

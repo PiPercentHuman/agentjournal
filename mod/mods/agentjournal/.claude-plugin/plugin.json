@@ -1,0 +1,5 @@
+{
+  "name": "agentjournal",
+  "version": "0.4.0",
+  "description": "A memory for long jobs: your instructions pinned word for word with their updates, one line per action, a fold made by code when the context fills, and a clear of its own when the agent finishes a topic."
+}

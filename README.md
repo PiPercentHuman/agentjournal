@@ -278,6 +278,13 @@ and `/clear`, the new session keeps writing to the same folder.
 When you see "safe to /clear", run it: you get an empty context that wakes up from the notes, with no summary in
 between. You can also `/clear` whenever the context is heavy, but a `/clear` the agent did not ask for starts blank.
 
+### Claude Code 2.1.287 or later - mod (0.4.0)
+The `mod/` folder holds AgentJournal as a Claude Code mod: it answers Claude Code's compaction itself (pins, journal
+and the last six rows handed back as the conversation, no model called) and clears the conversation when the agent says a
+topic is done. Load it with `claude --plugin-dir mod/mods/agentjournal`. Same folder: the race it was measured in
+(five ways of handling a full context, 30 headless Claude Code jobs on claude-haiku-5-5, 6 seeded worlds each) and every run;
+`python mod/replay.py` scores all 30 again without a model. Details in [mod/README.md](mod/README.md).
+
 ### Codex CLI and GitHub Copilot - hooks
 Copy `plugin/hooks/agentjournal-hook.mjs` and `plugin/bin/agentjournal.mjs` into the same stable folder (the hook
 tells the agent to run the command from beside itself; with only the hook copied, `agentjournal sleep`, `note` and
@@ -311,6 +318,7 @@ Built on [pi](https://github.com/earendil-works/pi) (MIT). The benchmark compare
   `skills/agentjournal/SKILL.md`) and the `agentjournal` command (`bin/agentjournal.mjs`, with `sh` and `.cmd`
   shims). The one hook script also serves Codex and Copilot.
 - `install/`: hook configs for a Claude Code project, Codex and Copilot.
+- `mod/`: AgentJournal as a Claude Code mod (0.4.0), the race it was measured in and all 30 runs (see its README).
 - `pi/`: the pi extension (`extensions/agentjournal.ts`) and the pi launcher (`bin/agentjournal.mjs`, run by
   `agentjournal pi`).
 - `test/`: checks with no model (`node --test`): what the wake-up holds after an instruction is changed partway,
