@@ -45,7 +45,14 @@ const action = (m: Msg): string =>
 		.replace(/\s+/g, " ")
 		.trim();
 
-const chars = (m: Msg) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content)).length;
+// A message may carry no content at all (empty tool/system turns). JSON.stringify(undefined) is undefined, so
+// guard it: without this the estimate and the sent-token reduce throw "Cannot read properties of undefined (reading 'length')".
+const chars = (m: Msg | undefined): number => {
+	const c = m?.content;
+	if (typeof c === "string") return c.length;
+	if (c === undefined || c === null) return 0;
+	return (JSON.stringify(c) ?? "").length;
+};
 
 export default function (pi: ExtensionAPI) {
 	const root = process.env.AGENTJOURNAL_ROOT ?? path.resolve(process.cwd(), process.env.AGENTJOURNAL_DIR ?? ".agentjournal");
