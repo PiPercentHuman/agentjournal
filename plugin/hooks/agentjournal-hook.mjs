@@ -14,8 +14,8 @@
 //                                          .agentjournal/INBOX.jsonl; an update goes to UPDATES.jsonl and is shown
 //                                          under the pin it changes at every wake-up. A sleep asks once more for the
 //                                          updates not yet written, before the conversation they depend on is cleared)
-//   node agentjournal-hook.mjs ask         on Claude Code PreToolUse(Bash): `agentjournal sleep` asks the user first
-//                                          (Allow = close the topic; Deny = keep working in this context)
+//   node agentjournal-hook.mjs ask         on Claude Code PreToolUse(Bash|PowerShell): the journal's own commands
+//                                          (note, sleep, update, same, pins, status) are allowed without a prompt
 //   node agentjournal-hook.mjs stop        on Stop: after `agentjournal sleep`, tell the user (and the desktop) to /clear
 //                                          (a /clear after a sleep continues the same pins and journal)
 //   node agentjournal-hook.mjs wake        on SessionStart compact|resume|clear      -> pins + recent journal back in context
@@ -269,17 +269,21 @@ function main(action, ev) {
 		return;
 	}
 	if (action === "ask") {
-		// Claude Code PreToolUse on Bash: the user decides whether the agent may close the topic (and so clear).
-		const sleep = String(e.input.command ?? "").match(/agentjournal(?:\.mjs)?["']?\s+sleep\s+([\s\S]*)$/);
-		if (!sleep) return;
-		const topic = oneLine(sleep[1].replace(/^\s*["']|["']\s*$/g, ""), 300);
+		// Claude Code PreToolUse on Bash/PowerShell: the journal saves itself, so its own commands never wait on a
+		// permission prompt (user, 2026-11-22: "it does not ask for permission to save - it saves it automatically").
+		// Only a command that is the agentjournal call ALONE is allowed: one argument string with no $ or backtick, and
+		// nothing chained after it, so `agentjournal note x; rm ...` still goes through the normal permission check.
+		const cmd = String(e.input.command ?? "").trim();
+		const m = cmd.match(/^(?:&\s*)?(?:node(?:\.exe)?\s+)?("[^"]*agentjournal(?:\.mjs)?"|'[^']*agentjournal(?:\.mjs)?'|[^\s;&|]*agentjournal(?:\.mjs)?)\s+(note|sleep|update|same|pins|status)(?:\s+([\s\S]*))?$/);
+		if (!m) return;
+		const args = (m[3] ?? "").trim();
+		const safe = args === "" || /^(\d+\s+)?("(?:[^"\\$`]|\\[^$`])*"|'[^']*')$/.test(args);
+		if (!safe) return;
 		process.stdout.write(JSON.stringify({
 			hookSpecificOutput: {
 				hookEventName: "PreToolUse",
-				permissionDecision: "ask",
-				permissionDecisionReason:
-					`AgentJournal: Claude finished a topic and wants a fresh context ("${topic}"). Allow = journal it and stop; ` +
-					"then type /clear and it wakes up from your pins and the journal. Deny = keep working in this context.",
+				permissionDecision: "allow",
+				permissionDecisionReason: `AgentJournal saves automatically (${m[2]}).`,
 			},
 		}));
 		return;

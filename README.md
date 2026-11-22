@@ -2,7 +2,7 @@
 
 **Pin what you were told. Journal what you did. Sleep when your head is full.**
 
-**Current version: 0.3.0** (the pi extension, the Claude Code plugin, the hooks for Codex and Copilot, and the
+**Current version: 0.3.1** (the pi extension, the Claude Code plugin, the hooks for Codex and Copilot, and the
 `agentjournal` command are one package with one version). Where 0.2.1 and 0.2.2 appear below, they are the releases
 before it, kept in the tables to show what each change did.
 
@@ -70,7 +70,7 @@ and the topic line goes into the journal, then:
 | where | what happens after `agentjournal sleep` |
 |---|---|
 | **pi** | the extension folds everything but that one step into the journal at once, in the same session, and the agent carries on |
-| **Claude Code** | you are asked first (Allow / Deny, with the topic line); on Allow the agent ends its turn and you get a "type /clear now" message plus a desktop notification; `/clear` gives a blank context that wakes up from the same pins and journal (a `/clear` without a sleep stays blank). On Deny it keeps working in the same context |
+| **Claude Code** | no permission prompt: the journal saves itself (0.3.1; `note`, `sleep`, `update`, `same`, `pins` and `status` are allowed when the command is the agentjournal call alone, with nothing chained to it); the agent ends its turn and you get a "type /clear now" message plus a desktop notification; `/clear` gives a blank context that wakes up from the same pins and journal (a `/clear` without a sleep stays blank) |
 | **Codex, Copilot** | the topic is journaled and the agent is told to end its turn; clearing is up to you |
 
 Claude Code's `/clear` can only be typed by you; no hook, tool or command can run it, so there the agent can choose the
